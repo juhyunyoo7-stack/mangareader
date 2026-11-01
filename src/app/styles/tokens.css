@@ -1,0 +1,42 @@
+:root {
+  --bg: #0f0f10;
+  --bg-elev: #1a1a1c;
+  --bg-elev2: #242427;
+  --text: #e8e8e8;
+  --text-dim: #9a9aa0;
+  --accent: #5a8cff;
+  --accent-text: #0b1020;
+  --danger: #ff6b6b;
+  --border: #2e2e33;
+  --radius: 10px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --tab-h: 56px;
+  --reader-bg: #000;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --bg: #f5f5f7;
+  --bg-elev: #ffffff;
+  --bg-elev2: #ececf0;
+  --text: #17171a;
+  --text-dim: #5d5d66;
+  --accent: #2f5fe0;
+  --accent-text: #ffffff;
+  --border: #d4d4da;
+  color-scheme: light;
+}
+:root[data-theme='oled'] {
+  --bg: #000;
+  --bg-elev: #0b0b0c;
+  --bg-elev2: #151517;
+  --border: #222;
+}
+@media (prefers-contrast: more) {
+  :root {
+    --text-dim: #c8c8cc;
+    --border: #6a6a72;
+  }
+}

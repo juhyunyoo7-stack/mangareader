@@ -1,0 +1,46 @@
+{
+  "name": "mangareader",
+  "version": "0.1.0",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "fixtures": "node --experimental-strip-types scripts/gen-fixtures.ts",
+    "icons": "node --experimental-strip-types scripts/gen-icons.ts",
+    "format": "prettier --write .",
+    "check": "npm run typecheck && prettier --check src tests scripts && npm test && npm run build && npm run e2e"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Offline-first PWA manga/comic reader",
+  "dependencies": {
+    "@jsquash/avif": "2.1.1",
+    "@jsquash/jxl": "1.3.0",
+    "@preact/signals": "2.11.3",
+    "fflate": "0.8.3",
+    "idb": "8.0.4",
+    "libarchive-wasm": "1.2.0",
+    "pdfjs-dist": "6.4.299",
+    "preact": "11.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.5",
+    "jpeg-js": "0.4.4",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  },
+  "private": true,
+  "type": "module"
+}

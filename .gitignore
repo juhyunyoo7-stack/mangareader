@@ -1,0 +1,12 @@
+node_modules
+dist
+test-results
+playwright-report
+tests/fixtures/out
+
+# personal copyrighted scans used for local review only: never publish
+docs/screenshots/real-*
+
+# build outputs of scripts/build-exe.cmd (reproducible) and Explorer folder icon
+release/
+desktop.ini
