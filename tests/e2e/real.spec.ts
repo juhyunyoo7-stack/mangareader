@@ -7,7 +7,8 @@ import { expect, test } from './fixtures.ts';
 import { readingOrder } from '../../src/core/panels.ts';
 import { stage, waitPage } from './helpers.ts';
 
-const DIR = 'C:/YJH/파일조 다운로드/만화책/소년탐정 김전일';
+// The owner's scans moved to drive E: (2026-11); REAL_DIR overrides the location.
+const DIR = process.env.REAL_DIR ?? 'E:/만화책/소년탐정 김전일';
 const vol = (n: number) => `${DIR}/소년탐정 김전일 ${String(n).padStart(2, '0')}권.zip`;
 
 test.skip(!process.env.REAL || !existsSync(vol(10)), 'set REAL=1 with the real files present');
