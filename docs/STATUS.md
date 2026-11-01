@@ -2,6 +2,25 @@
 
 Last full `npm run check` (typecheck, prettier, unit, build, e2e): green on 2026-10-13 after the last change (286 unit, 75 e2e passed, 84 skipped: WebKit storage specs plus the opt-in real-file specs).
 
+## 2026-11-01: folder move check, desktop launcher, icon, trim, guided label
+
+Latest full `npm run check` (after all changes below): green, 289 unit (14 files), 75 e2e passed, 84 skipped (same skips as before: WebKit storage specs + opt-in real/screenshot specs).
+
+| Item | What was done and verified |
+| --- | --- |
+| Folder move (`개발프로그램\MangaReader` -> `개발프로그램\3_영상·미디어\MangaReader`) | `npm ci` and the full check run green from the new path before any change (286 unit, 75 e2e, 84 skipped). No absolute project paths in configs/scripts; no Korean-path problem found. The only broken path was the real-file folder: the scans moved to `E:\만화책\소년탐정 김전일`; `real.spec.ts` now defaults there (`REAL_DIR` overrides). |
+| Real-file test | `REAL=1 ... real` 7/7 passed from E: (import of vols 10+01+20, 62 MB: 2.0 s; open 91 ms; page-turn median 9 ms, p90 15 ms; cache 177 MB, heap 10 MB; resume OK; series RTL inherited). Drive E: was unplugged later in the session, so the final re-run with the new trim code was done numerically only (next row). |
+| Auto-trim vs dark scanner borders | `contentBox` now strips a dark band at a side only when it ends within 4% of the side **and** blank paper follows; if art or a panel frame touches the paper edge after the band, that side is not cropped. Dark margins keep a 3 px (at 512 px) pad so a black panel frame next to a black margin is not cut. Guard unit tests (dark border + art touching each paper edge, full-bleed art, dark art at the image edge) fail on the old code and pass now. Real scans, measured with the same function on 512 px luminance in Node (no images viewed): vol 10 0/89 cropped (old 0), vol 01 5/91 (identical to old, removed area 100% light paper), vol 20 5/92 (old 4; all removed areas 100% dark margin, slightly less removed than before because of the pad). Only 1 of 272 pages had a scanner band followed by paper: on these scans the art reaches the paper edge, so trimming the 1-6 px dark edge would cut art and is deliberately not done. Net effect on these files: practically none, but no damage. |
+| Guided view | Visible "실험 기능" badge in reader settings, honest hint, toast says experimental, default off (unchanged). `panels.ts` not changed: improving it needs hand-annotated ground truth on the owner's copyrighted spreads, which was not done, so no measured improvement is claimed (still 0/10 fully correct). |
+| Desktop launcher | See `launcher/BUILD.md`. Fixed: the single-instance mutex was garbage-collected, so a second start showed a false "port 4173 busy" dialog (reproduced with the shipped exe). Now: second start focuses the open window; busy port -> clear Korean message (tested with another server on 0.0.0.0:4173 and on 127.0.0.1:4173), exit without starting the browser; window size remembered (resized 900x700 kept after reopen); `no-cache` for shell/SW; non-local requests refused. Rebuilt with `scripts/build-exe.cmd`. Tested with a separate test profile (`MANGAREADER_PROFILE`) and CDP (`MANGAREADER_DEBUG_PORT`): started from `C:\` and from the Desktop shortcut, all 21 served files identical to `dist`, library shows, `basic-10.cbz` imports (0.24 s) and opens, next page works, closing the window ends the launcher in about 4-5 s with no browser process left and port 4173 free. |
+| Icon | `launcher/MangaReader.ico` (6 sizes, embedded in the exe: 1 RT_GROUP_ICON, 6 RT_ICON), PWA icons replaced (192/512/maskable). Made from a local Stable Diffusion render plus a drawn panel grid (details in `launcher/BUILD.md`). |
+| Desktop shortcut | `C:\Users\strag\Desktop\만화 리더.lnk` -> `release\MangaReader.exe`, working dir `release`, icon `release\MangaReader.ico`. Read back and launched successfully. |
+| Large archive | Synthetic 84 MB CBZ (48 noisy 1400x2000 JPEG pages, stored): import 0.34 s, open immediate, 47 page turns fine, page cache 110 MB (budget 800 MB, 0 evictions), JS heap 10 MB, no page errors. Once, `+` right after 47 rapid turns to the last page left zoom at 1.00; not reproduced on a second try (zoom 1.96 mid-book, 1.40/1.96 on the last page). |
+
+Not verified in this round: second-start focus when a system dialog ("Windows 보안" / PickerHost) is in front (Windows refused focus in 10 tries; it worked once when no such dialog was open); owner's real profile was never used in tests (no test data was added to it); real compressed/solid RAR, real PDFs/EPUBs, iOS/Android devices (unchanged from below); a real 60+ MB scanned CBZ (only the synthetic one).
+
+**Resume here (2026-11-01):** (1) guided view accuracy only with annotated ground truth (counts per real spread in `tests/fixtures/real-annotations.json`); (2) real CBR/PDF/EPUB files; (3) items under "Resume here" at the end.
+
 ## Task completion (DESIGN.md section 15)
 
 | Task                                                                       | State                                                                                                      |
@@ -32,14 +51,14 @@ Not started from phase 3: T26 auto-offset suggestion, T27 controls customisation
 | --- | --- |
 | (3) Korean UI | **Done, check green.** All views, toasts, import/scan/error messages live in `src/i18n/` (`en.ts` defines the keys, `ko.ts` is the default, `index.ts` picks the locale; `src/strings.ts` re-exports `S`). Language selector in Settings (reloads). To add a language: create `src/i18n/<code>.ts` exporting a `Dict`, register it in `LOCALES` and `LOCALE_NAMES` in `index.ts`; the compiler lists missing keys. e2e specs run with the English locale (fixture option `uiLocale`, default `en`), `tests/e2e/korean.spec.ts` runs in Korean and checks Korean content plus horizontal overflow / clipped text on phone 412x915, iPad 820x1180 and desktop 1280x800 (no problems found by those heuristics; screenshots `docs/screenshots/ko-*.png` looked fine to me: no mid-word breaks, nothing cut off). Bug found and fixed on the way: the settings sheet derived group ids with `\W`, so every Korean label produced the same id. Not covered: iOS/Android real devices, `archive`/`core` internal developer strings (not user-visible). |
 | (1a) Night filter | **Done, check green.** `Night` replaced by `Dim` (`brightness(.64) sepia(.2) contrast(1.06)`, reads well on the real grey scans: soft warm paper, ink intact) and `Invert-soft` (invert + hue-rotate + contrast .55 + brightness 1.35, background about 30% grey, not black). Honest limit: in Invert-soft faces still come out dark because paper and faces are both white in these scans and a global filter cannot separate them; Dim is the one to recommend. Old stored `night` maps to `invert-soft`. Compared 7 candidate curves visually on real page 3 and the cover. |
-| (1b) Auto-trim vs dark scanner borders | **Not started.** Still 0/89 pages cropped on vol 10. |
-| (2) Guided panel accuracy + annotations + experimental flag | **Not started.** Baseline unchanged: 0/10 real spreads fully correct. The Korean strings already contain `experimental` (실험 기능) for the planned label; the setting that turns guided view OFF by default is not added (guided is already off by default; only the label is missing). |
+| (1b) Auto-trim vs dark scanner borders | **Done 2026-11-01 (conservative).** See the 2026-11-01 section. |
+| (2) Guided panel accuracy + annotations + experimental flag | **Label done 2026-11-01, algorithm unchanged.** Visible 실험 기능 badge, honest hint, toast says experimental, still off by default. Accuracy not improved (see 2026-11-01 section). |
 
-**Resume here:** (1b) start in `src/core/trim.ts` `contentBox`: estimate the border colour from the outer band, treat a uniform dark band as border, then crop paper margins conservatively; add guard tests that panel content is never cropped (synthetic pages with a dark border and inked art touching the paper edge) and REAL=1 counts for vols 10/01/20. Then (2): annotate the 10 spreads into `tests/fixtures/real-annotations.json` (counts only) and improve `src/core/panels.ts`; per-page overlay helper `drawPanels` is in `tests/e2e/real.spec.ts`.
+**Old resume note (superseded by the 2026-11-01 section):** (1b) start in `src/core/trim.ts` `contentBox`: estimate the border colour from the outer band, treat a uniform dark band as border, then crop paper margins conservatively; add guard tests that panel content is never cropped (synthetic pages with a dark border and inked art touching the paper edge) and REAL=1 counts for vols 10/01/20. Then (2): annotate the 10 spreads into `tests/fixtures/real-annotations.json` (counts only) and improve `src/core/panels.ts`; per-page overlay helper `drawPanels` is in `tests/e2e/real.spec.ts`.
 
 ## Real-file test (owner's Kindaichi volumes 01, 10, 20, 2026-10-13)
 
-Run with `REAL=1 npx playwright test real --project=chromium-desktop` (files are read in place, nothing is copied into the repo). The screenshots in `docs/screenshots/real-*.png` are copyrighted personal scans for local review only: **never publish them** (they are listed in `.gitignore`; `docs/` is also outside prettier).
+Run with `REAL=1 npx playwright test real --project=chromium-desktop` (default folder `E:/만화책/소년탐정 김전일` since 2026-11, override with `REAL_DIR`; files are read in place, nothing is copied into the repo). The screenshots in `docs/screenshots/real-*.png` are copyrighted personal scans for local review only: **never publish them** (they are listed in `.gitignore`; `docs/` is also outside prettier).
 
 | Check | Result (measured on this PC, Chromium 1280x800, preview build) |
 | --- | --- |
@@ -79,7 +98,6 @@ Reviewed all three viewports. Fixed: import progress panel stayed open after suc
 ## Not done / unverified
 
 - Real iOS/Android devices untested (all DESIGN 16.2 items). Not deployed.
-- UI language is still English. Only Settings/backup strings live in `src/strings.ts`; the library, reader, menus and toasts still have inline English strings, and 60+ e2e selectors depend on them. Moving them to Korean means touching every view plus those tests.
 - Collections have no UI (they are exported/merged in the state file but import ignores them).
 - Series preferences import only applies to a series that has no preferences yet (series records carry no updatedAt).
 - ESLint omitted on purpose (tsc strict + noUnused*, prettier). No vite-plugin-pwa (own esbuild SW plugin).
