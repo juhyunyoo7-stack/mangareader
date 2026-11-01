@@ -388,6 +388,11 @@ progress {
 .badge-warn {
   background: #a5540a;
 }
+.badge-inline {
+  position: static;
+  display: inline-block;
+  vertical-align: middle;
+}
 .badge-count {
   left: auto;
   right: 6px;

@@ -151,7 +151,7 @@ export const ko: Dict = {
   bookmarkRemoved: '북마크를 해제했습니다',
   bookmarkedPage: (n) => `${n}쪽에 북마크했습니다`,
   layoutToast: (name) => `배치: ${name}`,
-  guidedToast: (on) => `가이드 보기: ${on ? '켜짐' : '꺼짐'}`,
+  guidedToast: (on) => `가이드 보기(실험 기능): ${on ? '켜짐' : '꺼짐'}`,
   pageMenuTitle: (n) => `${n}쪽`,
   showAlone: '이 쪽만 단독 표시',
   startSpread: '여기서부터 짝 맞추기',
@@ -198,7 +198,8 @@ export const ko: Dict = {
   trimMargins: '여백 자르기',
   trimMarginsHint: '쪽 가장자리의 빈 여백을 잘라냅니다 (한 쪽·두 쪽 배치)',
   guidedView: '가이드 보기',
-  guidedViewHint: '컷을 하나씩 차례로 확대해 보여줍니다 (한 쪽 배치)',
+  guidedViewHint:
+    '컷을 하나씩 차례로 확대해 보여줍니다 (한 쪽 배치). 실제 만화에서는 여러 컷을 하나로 묶거나 쪽 전체를 보여줄 때가 많습니다.',
   experimental: '실험 기능',
   pageOverrides: '쪽별 설정',
   pageOverridesHint:

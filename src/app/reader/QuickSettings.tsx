@@ -184,7 +184,10 @@ export function QuickSettings({
       </div>
       <div class="setting">
         <label class="label" for="guided-view">
-          {S.guidedView}
+          {S.guidedView}{' '}
+          <span class="badge badge-warn badge-inline" data-testid="guided-experimental">
+            {S.experimental}
+          </span>
           <span class="hint">{S.guidedViewHint}</span>
         </label>
         <input

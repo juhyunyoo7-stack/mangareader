@@ -155,7 +155,7 @@ export const en = {
   bookmarkRemoved: 'Bookmark removed',
   bookmarkedPage: (n: number) => `Bookmarked page ${n}`,
   layoutToast: (name: string) => `Layout: ${name}`,
-  guidedToast: (on: boolean) => `Guided view: ${on ? 'on' : 'off'}`,
+  guidedToast: (on: boolean) => `Guided view (experimental): ${on ? 'on' : 'off'}`,
   pageMenuTitle: (n: number) => `Page ${n}`,
   showAlone: 'Show alone',
   startSpread: 'Start a spread here',
@@ -203,7 +203,8 @@ export const en = {
   trimMargins: 'Trim page margins',
   trimMarginsHint: 'Crops blank borders (single and double page layouts)',
   guidedView: 'Guided view',
-  guidedViewHint: 'Step through panels one by one (single page layout)',
+  guidedViewHint:
+    'Step through panels one by one (single page layout). On real manga it often merges panels or shows the whole page.',
   experimental: 'Experimental',
   pageOverrides: 'Page overrides',
   pageOverridesHint:
