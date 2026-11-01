@@ -234,6 +234,56 @@ describe('content box (auto-trim)', () => {
     near(contentBox(makePage([r(0, 0, 1, 1)])), r(0, 0, 1, 1));
   });
 
+  /** Every ink pixel (outside the synthetic scanner border) lies inside the crop. */
+  const inkInside = (lum: Lum, c: Rect, sb = 0) => {
+    const x0 = Math.floor(c.x * lum.w);
+    const y0 = Math.floor(c.y * lum.h);
+    const x1 = Math.ceil((c.x + c.w) * lum.w);
+    const y1 = Math.ceil((c.y + c.h) * lum.h);
+    let outside = 0;
+    for (let y = sb; y < lum.h - sb; y++) {
+      for (let x = sb; x < lum.w - sb; x++) {
+        if (lum.data[y * lum.w + x]! < 200 && (x < x0 || x >= x1 || y < y0 || y >= y1)) outside++;
+      }
+    }
+    return outside;
+  };
+
+  it('dark scanner border around white margins: border and margins go, panels stay', () => {
+    const page = makePage(GRID, { scanBorder: 10 });
+    const c = contentBox(page);
+    near(c, r(0.05, 0.04, 0.9, 0.92));
+    expect(inkInside(page, c, 10)).toBe(0);
+  });
+
+  it('guard: art touching the paper edge inside a dark scanner border is never cropped', () => {
+    for (const box of [
+      r(10 / W, 0.2, 0.5, 0.6), // left edge
+      r(0.3, 10 / 728, 0.4, 0.5), // top edge
+      r(0.4, 0.3, 1 - 0.4 - 10 / W, 0.4), // right edge
+      r(0.1, 0.5, 0.6, 0.5 - 10 / 728), // bottom edge
+      r(10 / W, 10 / 728, 1 - 20 / W, 1 - 20 / 728), // full-bleed art inside the border
+    ]) {
+      const page = makePage([box], { scanBorder: 10 });
+      const c = contentBox(page);
+      expect(inkInside(page, c, 10)).toBe(0);
+    }
+  });
+
+  it('guard: dark art at the image edge is not mistaken for a scanner border', () => {
+    // a black area 10% wide down the whole left edge, then white paper with a panel
+    const page = makePage([r(0.3, 0.2, 0.5, 0.5)]);
+    for (let y = 0; y < page.h; y++)
+      for (let x = 0; x < Math.round(page.w * 0.1); x++) page.data[y * page.w + x] = 5;
+    const c = contentBox(page);
+    expect(c.x).toBe(0);
+    expect(inkInside(page, c)).toBe(0);
+    // dark art covering only part of the edge
+    const part = makePage([r(0, 0.1, 0.3, 0.3), r(0.4, 0.5, 0.5, 0.4)]);
+    expect(inkInside(part, contentBox(part))).toBe(0);
+    expect(contentBox(part).x).toBe(0);
+  });
+
   it('union keeps both pages of a spread aligned; negligible crops are skipped', () => {
     const u = unionRect(r(0.1, 0.1, 0.5, 0.5), r(0.05, 0.2, 0.7, 0.6));
     expect([u.x, u.y, u.w, u.h].map((v) => Math.round(v * 1000))).toEqual([50, 100, 700, 700]);
