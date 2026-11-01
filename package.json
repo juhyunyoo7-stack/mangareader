@@ -12,7 +12,8 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "fixtures": "node --experimental-strip-types scripts/gen-fixtures.ts",
-    "icons": "node --experimental-strip-types scripts/gen-icons.ts",
+    "icons:placeholder": "node --experimental-strip-types scripts/gen-icons-placeholder.ts",
+    "build:exe": "scripts\\build-exe.cmd",
     "format": "prettier --write .",
     "check": "npm run typecheck && prettier --check src tests scripts && npm test && npm run build && npm run e2e"
   },
