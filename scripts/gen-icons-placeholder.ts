@@ -21,7 +21,7 @@ function icon(size: number, maskable: boolean): Uint8Array {
 }
 
 mkdirSync('public/icons', { recursive: true });
-writeFileSync('public/icons/icon-192.png', icon(192, false));
-writeFileSync('public/icons/icon-512.png', icon(512, false));
-writeFileSync('public/icons/icon-maskable-512.png', icon(512, true));
+writeFileSync('public/icons/placeholder-icon-192.png', icon(192, false));
+writeFileSync('public/icons/placeholder-icon-512.png', icon(512, false));
+writeFileSync('public/icons/placeholder-icon-maskable-512.png', icon(512, true));
 console.log('icons written');
