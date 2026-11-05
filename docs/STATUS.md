@@ -2,6 +2,19 @@
 
 Last full `npm run check` (typecheck, prettier, unit, build, e2e): green on 2026-10-13 after the last change (286 unit, 75 e2e passed, 84 skipped: WebKit storage specs plus the opt-in real-file specs).
 
+## 2026-11-05: loose images and folders import, port diagnosis, phone guide
+
+Latest full `PW_PORT=15173 npm run check`: green, 78 e2e passed, 87 skipped (same skip classes as before), unit tests incl. 11 new ones.
+
+| Item | What was done and verified |
+| --- | --- |
+| Loose page images (owner's main use: downloaded image files) | Before: the picker rejected anything but zip/rar/7z/pdf ("unsupported"), so loose JPG/PNG files could not be read. Now `src/data/imageBundle.ts` streams selected images into a stored CBZ (fflate `Zip`+`ZipPassThrough`, 1 MB slices) and feeds it to the normal import. One book per selection, or per folder with "Import image folder" (`webkitdirectory`). Pages follow natural file-name order (2 before 10). Book title = folder name, else the common file-name prefix, else "Images <date>". Verified: 11 unit tests (order, naming, byte-identical read-back via ZipReader, >1 MB image, archives pass through) and 3 e2e (4 loose PNGs -> 1 book with 4 pages, folder input -> book named after the folder, same images twice -> duplicate toast, 1 card). |
+| Two bugs found by those tests and fixed | (1) `webkitdirectory=""` is a boolean property in Preact, so the folder picker silently did nothing; now `{true}`. (2) The CBZ entries carried the current time, so re-importing the same images 2+ seconds later produced different bytes and no duplicate detection; entry time is now fixed (1980-01-01), unit test waits 2.1 s to prove it. |
+| Port 4173 / EACCES | On this PC Windows reserved 4113-4212 (excluded port range), so `npm run check` failed with `listen EACCES ::1:4173` and the desktop launcher could not start either (`WinError 10013`). Tests: `PW_PORT` env overrides the e2e port (default stays 4173). Launcher port is NOT changed on purpose: the library lives at origin `localhost:4173`. Launcher: http.sys reports error 32 for both busy and reserved ports, so on failure it now probes with a plain socket (AccessDenied = reserved by Windows, otherwise busy) and shows a precise Korean message pointing to `docs/PORT.md`. Verified by launching the rebuilt exe in the blocked state and reading the dialog text. The old Windows C# 5 compiler rejects `catch ... when`, so the code uses a plain catch. |
+| Desktop exe | Rebuilt (`scripts/build-exe.cmd`): `releasepp` equals `dist` (diff clean) and contains the folder import. Not run end to end on a free port in this session because 4173 is blocked until Windows frees it (reboot) or `docs/PORT.md` step 2 is applied by the owner (admin). |
+| Phone | `docs/PHONE.md`: app is subpath-ready (`base './'`, relative manifest); phone needs HTTPS. Public deploy NOT done (standing agreement: report before push). No real phone was available, so iOS/Android behaviour is untested; the picker already has no `accept` filter for iOS. |
+| Not verified / not done | No real comic files exist on this PC (E: unplugged, no cbz/cbr found), so real RAR/PDF/EPUB still untested. Not started: duplicate/collections UI (T28), controls customisation (T27), app lock (T29), guided-view accuracy. Dropping a folder of images onto the window still goes to the "library folder" path (archives only); picking the folder with the button works. `launcher/Launcher.cs` also carries an earlier uncommitted `--disable-extensions` change that was in the working tree before this session. |
+
 ## 2026-11-01: folder move check, desktop launcher, icon, trim, guided label
 
 Latest full `npm run check` (after all changes below): green, 289 unit (14 files), 75 e2e passed, 84 skipped (same skips as before: WebKit storage specs + opt-in real/screenshot specs).

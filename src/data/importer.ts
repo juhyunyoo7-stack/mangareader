@@ -8,6 +8,7 @@ import { getImportWorker } from '../workers/clients.ts';
 import { RpcError } from '../workers/rpc.ts';
 import { applyPendingState } from './backup.ts';
 import { buildBook } from './bookFactory.ts';
+import { bundleLooseImages } from './imageBundle.ts';
 import { bookPath, removePath, safeSegment, storageEstimate } from './opfs.ts';
 import { addBook, getBookByKey, patchBook } from './repo.ts';
 import { S } from '../strings.ts';
@@ -45,7 +46,12 @@ export async function cleanupIncoming(): Promise<void> {
   }
 }
 
-export async function importFiles(files: File[]): Promise<ImportOutcome[]> {
+export async function importFiles(picked: File[]): Promise<ImportOutcome[]> {
+  // loose page images -> one CBZ per folder / selection, then the normal pipeline
+  const files = await bundleLooseImages(
+    picked,
+    S.imageBookName(new Date().toISOString().slice(0, 10)),
+  );
   const jobs: { file: File; job: ImportJob }[] = files.map((file) => ({
     file,
     job: { id: ulid(), name: file.name, bytes: 0, total: file.size, status: 'queued' },

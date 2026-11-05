@@ -277,8 +277,29 @@ static class Launcher
         {
             l.Prefixes.Add(Url);
             try { l.Start(); }
-            catch (Exception)
+            catch (Exception ex)
             {
+                // http.sys reports "in use" (32) both for a busy port and for a port inside a range Windows
+                // reserved (Hyper-V / WSL / Docker), so ask a plain socket: AccessDenied = reserved by Windows,
+                // AddressInUse = another program. (no `when` filter: the compiler shipped with Windows is C# 5)
+                bool reserved = false;
+                try
+                {
+                    var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, Port);
+                    probe.Start();
+                    probe.Stop();
+                }
+                catch (System.Net.Sockets.SocketException se)
+                {
+                    reserved = se.SocketErrorCode == System.Net.Sockets.SocketError.AccessDenied;
+                }
+                catch (Exception) { }
+                if (reserved)
+                {
+                    Error("만화 리더를 시작할 수 없습니다.\n\nWindows가 " + Port + "번 포트를 예약해 두었습니다 (다른 프로그램이 쓰는 것이 아닙니다). " +
+                          "컴퓨터를 다시 시작하면 보통 풀립니다. 계속 같으면 만화 리더 폴더의 docs\\PORT.md 안내를 따라 주세요.\n\n(만화책 목록이 이 주소에 저장되어 있어 다른 포트로 바꿀 수 없습니다.)");
+                    return;
+                }
                 Error("만화 리더를 시작할 수 없습니다.\n\n이 컴퓨터의 다른 프로그램이 " + Port + "번 포트를 쓰고 있습니다. " +
                       "그 프로그램을 닫은 뒤 다시 실행해 주세요.\n\n(만화책 목록이 이 주소에 저장되어 있어 다른 포트로 바꿀 수 없습니다.)");
                 return;
@@ -296,7 +317,7 @@ static class Launcher
 
             Directory.CreateDirectory(profile);
             bool firstRun = !File.Exists(Path.Combine(profile, "Local State"));
-            string args = "--app=" + Url + " --user-data-dir=\"" + profile + "\" --no-first-run --no-default-browser-check";
+            string args = "--app=" + Url + " --user-data-dir=\"" + profile + "\" --no-first-run --no-default-browser-check --disable-extensions";
             // the browser remembers the window size and position after the first run
             if (firstRun) args += " --window-size=1100,900";
             string dbg = Environment.GetEnvironmentVariable("MANGAREADER_DEBUG_PORT");

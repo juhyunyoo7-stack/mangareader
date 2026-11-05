@@ -40,6 +40,8 @@ export const en = {
   viewSeries: 'Series',
   viewAll: 'All books',
   importBooks: 'Import books',
+  importFolder: 'Import image folder',
+  imageBookName: (date: string) => `Images ${date}`,
   addFolder: 'Add folder',
   openInPlace: 'Open files in place',
   openInPlaceHint: 'Read files where they are, without copying',
@@ -99,7 +101,8 @@ export const en = {
   importFailedGeneric: 'import failed',
   importFailedShort: 'Import failed.',
   importCancelled: 'Import cancelled.',
-  unsupportedFile: 'This file is not a supported comic archive (CBZ, CBR, CB7, PDF, EPUB).',
+  unsupportedFile:
+    'This file is not a supported comic archive or image (CBZ, CBR, CB7, PDF, EPUB, JPG, PNG, WebP).',
   notEnoughStorage:
     'Not enough free storage for this file. Free some space or offload finished books.',
   scanned: (name: string) => `Scanned ${name}`,

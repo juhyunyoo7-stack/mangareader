@@ -1,9 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4173;
-const webkit = process.env.NO_WEBKIT ? [] : [
-  { name: 'webkit-desktop', use: { ...devices['Desktop Safari'] }, testIgnore: /(touch|chromium-only)/ },
-];
+// PW_PORT lets the tests run when Windows reserves 4173 (excluded port range, EACCES)
+const PORT = Number(process.env.PW_PORT ?? 4173);
+const webkit = process.env.NO_WEBKIT
+  ? []
+  : [
+      {
+        name: 'webkit-desktop',
+        use: { ...devices['Desktop Safari'] },
+        testIgnore: /(touch|chromium-only)/,
+      },
+    ];
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -18,7 +25,7 @@ export default defineConfig({
     serviceWorkers: 'allow',
   },
   webServer: {
-    command: 'npm run build && npm run preview',
+    command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !!process.env.PW_REUSE,
     timeout: 180_000,

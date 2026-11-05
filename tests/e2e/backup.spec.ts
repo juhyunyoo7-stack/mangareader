@@ -54,7 +54,9 @@ test('export on context A, import on fresh context B with the same CBZ restores 
   expect(doc.format).toBe('mangareader-state');
   expect(doc.progress).toHaveLength(1);
 
-  const ctxB = await browser.newContext({ baseURL: 'http://localhost:4173' });
+  const ctxB = await browser.newContext({
+    baseURL: `http://localhost:${process.env.PW_PORT ?? 4173}`,
+  });
   await ctxB.addInitScript(() => localStorage.setItem('mr.locale', 'en'));
   const b = await ctxB.newPage();
   // import the state first, then the book: pending state must apply on import

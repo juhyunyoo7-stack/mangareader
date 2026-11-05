@@ -35,6 +35,7 @@ export async function runImport(files: File[]): Promise<void> {
 
 export function ImportButton({ primary = false }: { primary?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
   return (
     <>
       <button class={primary ? 'btn primary' : 'btn'} onClick={() => input.current?.click()}>
@@ -47,6 +48,24 @@ export function ImportButton({ primary = false }: { primary?: boolean }) {
         multiple
         hidden
         data-testid="file-input"
+        onChange={(e) => {
+          const el = e.currentTarget;
+          const files = [...(el.files ?? [])];
+          el.value = '';
+          void runImport(files);
+        }}
+      />
+      <button class="btn" onClick={() => folderInput.current?.click()} data-testid="import-folder">
+        <Icon name="plus" size={18} /> {S.importFolder}
+      </button>
+      {/* a picked folder of page images becomes one book (named after the folder) */}
+      <input
+        ref={folderInput}
+        type="file"
+        hidden
+        // @ts-expect-error non-standard attribute, supported by Chromium and Safari
+        webkitdirectory={true}
+        data-testid="folder-input"
         onChange={(e) => {
           const el = e.currentTarget;
           const files = [...(el.files ?? [])];
