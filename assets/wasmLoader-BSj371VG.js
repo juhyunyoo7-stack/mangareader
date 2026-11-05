@@ -1,0 +1,1 @@
+import{t as e}from"./dist-CxXJKBKY.js";var t=e(),n=new URL(`libarchive-CvbwXclq.wasm`,import.meta.url).href;const r=()=>(0,t.libarchiveWasm)({locateFile:()=>n});export{r as loadLibarchive};
