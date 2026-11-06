@@ -6,7 +6,8 @@ export interface PdfPageIn {
   rgb: [number, number, number];
 }
 
-export function writePdf(pages: PdfPageIn[]): Uint8Array {
+/** `padBytes` adds a comment of that size after the header (a big file whose objects sit at the end). */
+export function writePdf(pages: PdfPageIn[], padBytes = 0): Uint8Array {
   const objs: string[] = [];
   // 1 = catalog, 2 = pages, then per page: page object and content stream
   const kids = pages.map((_, i) => `${3 + i * 2} 0 R`).join(' ');
@@ -23,6 +24,7 @@ export function writePdf(pages: PdfPageIn[]): Uint8Array {
     objs.push(`<< /Length ${content.length} >>\nstream\n${content}endstream`);
   });
   let out = '%PDF-1.4\n';
+  if (padBytes > 0) out += `%${'x'.repeat(padBytes)}\n`;
   const offsets: number[] = [];
   objs.forEach((o, i) => {
     offsets.push(out.length);

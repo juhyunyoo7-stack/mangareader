@@ -23,8 +23,8 @@
 
 폰(Android Chrome, iPhone Safari)에서는 설치형 웹앱으로 씁니다. 폰에 만화를 넣는 방법은 PC와 같습니다. **책 가져오기**에서 폰 안의 만화 파일이나 이미지 여러 장을 고르면 됩니다. 만화는 그 폰 안에만 저장되고 인터넷으로 보내지지 않습니다.
 
-- 폰은 주소창에 앱 주소를 열어야 하므로, 앱을 인터넷 주소(HTTPS)에 올려야 합니다. 공개 배포는 유도사님 승인 후에 진행합니다. 배포 방법은 `docs/PHONE.md`에 있습니다.
-- PC와 폰의 읽던 쪽은 자동으로 이어지지 않습니다. 설정 화면의 **상태 내보내기/가져오기**로 옮깁니다.
+- 앱 주소: `https://juhyunyoo7-stack.github.io/mangareader/`. Android·iPad 설치 방법과 알려진 한계는 `docs/PHONE.md`에 있습니다.
+- PC와 폰의 읽던 쪽은 자동으로 이어지지 않습니다. 설정 화면의 **상태 내보내기/가져오기**로 옮깁니다(iPad·iPhone은 공유 창에서 "파일에 저장"이나 AirDrop).
 
 ## 주요 기능
 
@@ -70,6 +70,6 @@ npm run build:exe    # 데스크톱 실행 파일 release\MangaReader.exe + rele
 
 ## 알려진 한계
 
-- 실제 iOS/Android 기기에서의 검증은 아직 하지 못했습니다 (docs/STATUS.md 참고). Playwright WebKit(Windows)은 OPFS 쓰기가 되지 않아 저장 관련 E2E는 Chromium에서만 실행됩니다.
+- 실제 iOS/Android 기기에서의 검증은 아직 하지 못했습니다 (에뮬레이션만, docs/STATUS.md 참고). Playwright WebKit(Windows)은 OPFS 쓰기가 되지 않아 저장 관련 E2E는 Chromium에서만 실행됩니다.
 - UI는 한국어가 기본이며 설정에서 언어를 바꿀 수 있습니다 (`src/i18n/`).
-- 아직 배포하지 않았습니다.
+- GitHub Pages에 배포되어 있습니다. 2026-11-06 수정분은 아직 재배포 전입니다.

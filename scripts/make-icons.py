@@ -3,7 +3,8 @@
     python scripts/make-icons.py <master.png>
 
 Writes launcher/MangaReader.ico (256/128/64/48/32/16, rounded corners) and the PWA icons
-public/icons/icon-192.png, icon-512.png, icon-maskable-512.png. Needs Pillow + numpy.
+public/icons/icon-180.png (apple-touch-icon), icon-192.png, icon-512.png, icon-maskable-512.png.
+Needs Pillow + numpy.
 How the master was made is described in launcher/BUILD.md.
 """
 import os
@@ -47,7 +48,7 @@ def main() -> None:
     os.makedirs(icons, exist_ok=True)
     # PWA icons: square and opaque (the platform applies its own mask); 256-colour PNG keeps the
     # precached files small and the art survives it well
-    for n in (192, 512):
+    for n in (180, 192, 512):  # 180 = iOS apple-touch-icon size
         sized(art, n).quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(
             os.path.join(icons, f"icon-{n}.png"), optimize=True)
     # maskable: the whole master (more background around the book) shrunk into the 80% safe zone,
@@ -60,7 +61,7 @@ def main() -> None:
     m.paste(fg, ((512 - inner) // 2, (512 - inner) // 2), feather.filter(ImageFilter.GaussianBlur(10)))
     m.quantize(256, dither=Image.Dither.FLOYDSTEINBERG).save(
         os.path.join(icons, "icon-maskable-512.png"), optimize=True)
-    for f in ["launcher/MangaReader.ico", "public/icons/icon-192.png", "public/icons/icon-512.png",
+    for f in ["launcher/MangaReader.ico", "public/icons/icon-180.png", "public/icons/icon-192.png", "public/icons/icon-512.png",
               "public/icons/icon-maskable-512.png"]:
         print(f, os.path.getsize(os.path.join(ROOT, f)), "bytes")
 

@@ -1,6 +1,7 @@
 import type { Book, Bookmark, Progress } from '../core/types.ts';
 import { emptyState, mergeState, validateState, type StateDoc } from '../core/syncMerge.ts';
 import { getDb } from './db.ts';
+import { caps } from '../platform/web.ts';
 import { getDeviceId, getSetting, listBooks, setSetting } from './repo.ts';
 import { S } from '../strings.ts';
 
@@ -74,18 +75,40 @@ export function stateFileName(now = new Date()): string {
   return `mangareader-state-${now.toISOString().slice(0, 10)}.json`;
 }
 
-/** Triggers a browser download of the state file and records the backup time. */
+/**
+ * iPhone/iPad: hand the file to the share sheet ("Save to Files", AirDrop, mail), because a blob
+ * download from an installed (home-screen) web app is unreliable there. Returns 'shared',
+ * 'cancelled' (user closed the sheet) or 'unavailable' (caller falls back to a download).
+ */
+async function shareOnIOS(file: File): Promise<'shared' | 'cancelled' | 'unavailable'> {
+  if (!caps().isIOS || typeof navigator.share !== 'function') return 'unavailable';
+  if (!navigator.canShare?.({ files: [file] })) return 'unavailable';
+  try {
+    await navigator.share({ files: [file], title: file.name });
+    return 'shared';
+  } catch (e) {
+    return (e as { name?: string }).name === 'AbortError' ? 'cancelled' : 'unavailable';
+  }
+}
+
+/** Saves the state file (download, or the share sheet on iOS) and records the backup time. */
 export async function downloadState(): Promise<void> {
   const doc = await exportState();
-  const blob = new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = stateFileName();
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  const file = new File([JSON.stringify(doc, null, 1)], stateFileName(), {
+    type: 'application/json',
+  });
+  const shared = await shareOnIOS(file);
+  if (shared === 'cancelled') return;
+  if (shared === 'unavailable') {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
   await setSetting(LAST_BACKUP_KEY, Date.now());
 }
 

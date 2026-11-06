@@ -341,14 +341,17 @@ export function buildEpub(spec: EpubSpec): Uint8Array {
 }
 
 /** 4-page PDF: three 400x600 pt portrait pages and one 600x400 pt landscape page. */
-export function buildPdf(): Uint8Array {
+export function buildPdf(padBytes = 0): Uint8Array {
   const sizes: [number, number][] = [
     [400, 600],
     [400, 600],
     [400, 600],
     [600, 400],
   ];
-  return writePdf(sizes.map(([w, h], i) => ({ w, h, rgb: pageColor(i) })));
+  return writePdf(
+    sizes.map(([w, h], i) => ({ w, h, rgb: pageColor(i) })),
+    padBytes,
+  );
 }
 
 /** PNG, then real AVIF and JXL encodes of pages 0/1 (tests/fixtures/bin/page-*.{avif,jxl}). */

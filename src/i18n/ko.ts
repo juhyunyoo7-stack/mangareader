@@ -44,7 +44,9 @@ export const ko: Dict = {
   openInPlaceHint: '복사하지 않고 파일이 있는 자리에서 바로 읽습니다',
   noBooksTitle: '아직 책이 없습니다',
   noBooksBody:
-    'CBZ·ZIP 파일을 가져오거나 이 창에 끌어다 놓으세요. 파일은 이 기기 안에만 보관됩니다.',
+    '만화 파일(CBZ, ZIP, CBR, CB7, PDF, EPUB)이나 낱장 이미지를 가져오거나 이 창에 끌어다 놓으세요. 파일은 이 기기 안에만 보관됩니다.',
+  folderPickUnavailable:
+    '이 브라우저에서는 폴더를 고를 수 없습니다(iPhone·iPad는 iOS 18.4 이상 필요). “책 가져오기”에서 쪽 이미지를 한꺼번에 모두 고르면 책 한 권으로 묶입니다.',
   searchResults: '검색 결과',
   resultsCount: (n) => `결과 ${n}개`,
   continueReading: '이어 읽기',

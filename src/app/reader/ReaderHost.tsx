@@ -22,12 +22,13 @@ import { DecodeClient } from '../../engine/DecodeClient.ts';
 import { Reader } from '../../engine/Reader.ts';
 import type { ReaderConfig } from '../../engine/types.ts';
 import type { KeyCommand } from '../../engine/controls.ts';
-import { navigate } from '../router.ts';
+import { leave, replaceRoute } from '../router.ts';
 import { bumpLibrary, globalPrefs, pushToast, uiSettings } from '../store.ts';
 import { Sheet } from '../components/Sheet.tsx';
 import { Overlay } from './Overlay.tsx';
 import { QuickSettings } from './QuickSettings.tsx';
 import { isDebug } from '../../engine/Reader.ts';
+import { keepScreenOn } from '../../platform/web.ts';
 import { S } from '../../strings.ts';
 
 type Phase =
@@ -103,6 +104,7 @@ export function ReaderHost({ id }: { id: string }) {
     let cancelled = false;
     let reader: Reader | null = null;
     document.documentElement.classList.add('reading');
+    const releaseScreen = keepScreenOn(); // phones/tablets would dim and lock mid-page
     void (async () => {
       const b = await getBook(id);
       if (!b) {
@@ -195,6 +197,7 @@ export function ReaderHost({ id }: { id: string }) {
     window.addEventListener('keydown', onKey);
     return () => {
       cancelled = true;
+      releaseScreen();
       window.removeEventListener('pagehide', onHide);
       window.removeEventListener('keydown', onKey);
       document.documentElement.classList.remove('reading');
@@ -350,7 +353,7 @@ export function ReaderHost({ id }: { id: string }) {
     const b = state.current.book;
     void flushProgress().then(() => {
       bumpLibrary();
-      navigate(b ? `#/series/${encodeURIComponent(b.seriesId)}` : '#/library');
+      leave(b ? `#/series/${encodeURIComponent(b.seriesId)}` : '#/library');
     });
   };
 
@@ -375,7 +378,7 @@ export function ReaderHost({ id }: { id: string }) {
                 {S.reconnectLibrary}
               </button>
             )}
-            <button class="btn" onClick={() => navigate('#/library')}>
+            <button class="btn" onClick={() => leave('#/library')}>
               {S.backToLibrary}
             </button>
           </div>
@@ -465,7 +468,7 @@ export function ReaderHost({ id }: { id: string }) {
                 class="btn primary"
                 onClick={() => {
                   setFinishedPrompt(false);
-                  navigate(`#/read/${encodeURIComponent(nextBook.id)}`);
+                  replaceRoute(`#/read/${encodeURIComponent(nextBook.id)}`);
                 }}
               >
                 {S.nextVolume(nextBook.title)}

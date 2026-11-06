@@ -1,5 +1,14 @@
-import { getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from 'pdfjs-dist';
-import { WorkerMessageHandler } from 'pdfjs-dist/build/pdf.worker.mjs';
+import {
+  getDocument,
+  PDFDataRangeTransport,
+  type PDFDocumentLoadingTask,
+  type PDFDocumentProxy,
+} from 'pdfjs-dist/legacy/build/pdf.mjs';
+// The legacy build: the modern one calls Map#getOrInsertComputed, Math.sumPrecise and Promise.try
+// directly (MDN: getOrInsertComputed is "Baseline 2026"), which iPadOS 17/18 Safari and older Android
+// Chrome do not have, so PDFs would fail to open there (Node 22 fails the same way: no Promise.try).
+// The legacy build ships polyfills for them.
+import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 import { ArchiveError } from '../errors.ts';
 
 /**
@@ -33,6 +42,31 @@ class OffscreenCanvasFactory {
   }
 }
 
+/** Bytes per range read: pdf.js asks for the parts of the file it needs instead of the whole file. */
+const RANGE_CHUNK = 1 << 20;
+
+/**
+ * Serves pdf.js range requests from slices of the Blob (an OPFS file or picked File), so opening a
+ * large PDF does not read the whole file into one ArrayBuffer (DESIGN 6; matters on iPad/phones).
+ */
+class BlobRangeTransport extends PDFDataRangeTransport {
+  constructor(
+    private readonly blob: Blob,
+    initial: Uint8Array,
+  ) {
+    super(blob.size, initial);
+  }
+  override requestDataRange(begin: number, end: number): void {
+    void this.blob
+      .slice(begin, end)
+      .arrayBuffer()
+      .then(
+        (b) => this.onDataRange(begin, new Uint8Array(b)),
+        () => this.abort(),
+      );
+  }
+}
+
 export interface PdfPageDims {
   w: number;
   h: number;
@@ -47,10 +81,15 @@ export class PdfBook {
 
   static async open(file: Blob, maxBytes: number): Promise<PdfBook> {
     if (file.size > maxBytes) throw new ArchiveError('too-large');
-    const data = new Uint8Array(await file.arrayBuffer());
+    const initial = new Uint8Array(
+      await file.slice(0, Math.min(file.size, RANGE_CHUNK)).arrayBuffer(),
+    );
     try {
       const task = getDocument({
-        data,
+        range: new BlobRangeTransport(file, initial),
+        rangeChunkSize: RANGE_CHUNK,
+        disableAutoFetch: true, // only fetch the ranges the visited pages need
+        disableStream: true,
         CanvasFactory: OffscreenCanvasFactory,
         disableFontFace: true,
         useSystemFonts: false,

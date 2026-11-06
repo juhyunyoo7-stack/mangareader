@@ -34,6 +34,14 @@ export function registerServiceWorker(): void {
         updateReady.value = true;
       }
       reg.addEventListener('updatefound', () => watch(reg.installing));
+      // An installed app on a phone/iPad is usually resumed, not reloaded, so the browser rarely checks
+      // for a new version by itself: check when the app comes back to the foreground (at most hourly).
+      let lastCheck = Date.now();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || Date.now() - lastCheck < 3_600_000) return;
+        lastCheck = Date.now();
+        reg.update().catch(() => undefined);
+      });
     })
     .catch(() => {
       /* offline support unavailable; app still works online */

@@ -47,7 +47,9 @@ export const en = {
   openInPlaceHint: 'Read files where they are, without copying',
   noBooksTitle: 'No books yet',
   noBooksBody:
-    'Import CBZ or ZIP files, or drop them anywhere on this window. Your files stay on this device.',
+    'Import comic files (CBZ, ZIP, CBR, CB7, PDF, EPUB) or page images, or drop them on this window. Your files stay on this device.',
+  folderPickUnavailable:
+    'Folder selection is not available in this browser (iPhone/iPad needs iOS 18.4 or later). Use “Import books” and select all the page images at once: they become one book.',
   searchResults: 'Search results',
   resultsCount: (n: number) => `${n} result${plural(n, '', 's')}`,
   continueReading: 'Continue reading',

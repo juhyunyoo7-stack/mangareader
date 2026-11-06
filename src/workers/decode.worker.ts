@@ -28,7 +28,10 @@ interface FullEntry {
   srcH: number;
 }
 const MAX_FULL_PIXELS = 64_000_000;
-const MAX_FULL_BYTES = 300 * 1024 * 1024;
+/** Retry size when the browser refuses a full decode (iOS caps canvases/bitmaps near 16.7 MP). */
+const FALLBACK_FULL_PIXELS = 16_000_000;
+/** Kept full decodes: at most half the device's page-cache budget (100 MB on iPhone), max 300 MB. */
+const MAX_FULL_BYTES = Math.min(300 * 1024 * 1024, currentBudget().cacheBytes / 2);
 const fulls: FullEntry[] = [];
 
 function trimFulls(): void {
@@ -68,15 +71,23 @@ async function loadFull(bookId: string, entry: string): Promise<FullEntry> {
   const { blob, w, h } = await entryBlob(bookId, entry);
   let bitmap: ImageBitmap;
   let factor = 1;
+  const scaled = async (maxPixels: number) => {
+    const k = Math.sqrt(maxPixels / (w * h));
+    const bmp = await decodeScaled(blob, Math.floor(w * k), Math.floor(h * k));
+    factor = bmp.width / w;
+    return bmp;
+  };
   try {
     if (w * h <= MAX_FULL_PIXELS) bitmap = await createImageBitmap(blob);
-    else {
-      factor = Math.sqrt(MAX_FULL_PIXELS / (w * h));
-      bitmap = await decodeScaled(blob, Math.floor(w * factor), Math.floor(h * factor));
-      factor = bitmap.width / w;
-    }
+    else bitmap = await scaled(MAX_FULL_PIXELS);
   } catch {
-    throw new DecodeError('cannot decode image');
+    // a very large page can exceed the browser's bitmap limit (iOS Safari): retry smaller
+    if (w * h <= FALLBACK_FULL_PIXELS) throw new DecodeError('cannot decode image');
+    try {
+      bitmap = await scaled(FALLBACK_FULL_PIXELS);
+    } catch {
+      throw new DecodeError('cannot decode image');
+    }
   }
   const f: FullEntry = { key, bitmap, factor, srcW: w, srcH: h };
   fulls.push(f);

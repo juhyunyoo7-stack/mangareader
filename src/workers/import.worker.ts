@@ -7,6 +7,7 @@ import { probeImage, sniffImage } from '../archive/imageFormats.ts';
 import { decodeScaled, getCaps } from './imaging.ts';
 import { serve } from './rpc.ts';
 import { prepareImageBlob } from './wasmImages.ts';
+import { writeCbz } from '../data/imageBundle.ts';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -82,6 +83,41 @@ async function copyToIncoming(
   return fh;
 }
 
+/** Bundle loose page images (in reading order) into incoming/<tmpId> as a stored CBZ, streamed. */
+async function bundleToIncoming(
+  tmpId: string,
+  images: File[],
+  emit: (e: string, d: unknown) => void,
+): Promise<FileSystemFileHandle> {
+  const inc = await (await root()).getDirectoryHandle('incoming', { create: true });
+  const fh = await inc.getFileHandle(tmpId, { create: true });
+  const ah = await fh.createSyncAccessHandle();
+  const total = images.reduce((n, f) => n + f.size, 0);
+  let at = 0;
+  let last = 0;
+  try {
+    ah.truncate(0);
+    await writeCbz(images, (chunk) => {
+      if (cancelled.has(tmpId)) throw new ImportCancelled();
+      ah.write(chunk, { at });
+      at += chunk.byteLength;
+      const now = performance.now();
+      if (now - last > 120) {
+        last = now;
+        emit('progress', { tmpId, bytes: Math.min(at, total), total });
+      }
+    });
+    ah.flush();
+  } catch (e) {
+    ah.close();
+    await removeIncoming(tmpId);
+    throw e;
+  }
+  ah.close();
+  emit('progress', { tmpId, bytes: total, total });
+  return fh;
+}
+
 async function openSource(src: { file?: File; opfsPath?: string[] }): Promise<File> {
   if (src.file) return src.file;
   let d = await root();
@@ -150,12 +186,15 @@ type FileHandleWithMove = FileSystemFileHandle & {
 };
 
 serve(self, {
+  /** Copy `file` (or bundle the loose `images`) into incoming/<tmpId> and analyse it. */
   async importFile(
-    { tmpId, file }: { tmpId: string; file: File },
+    { tmpId, file, images }: { tmpId: string; file?: File; images?: File[] },
     ctx,
   ): Promise<{ analysis: Analysis; size: number }> {
     cancelled.delete(tmpId);
-    const fh = await copyToIncoming(tmpId, file, ctx.emit);
+    const fh = images
+      ? await bundleToIncoming(tmpId, images, ctx.emit)
+      : await copyToIncoming(tmpId, file!, ctx.emit);
     try {
       const f = await fh.getFile();
       const analysis = await analyzeArchive(f);

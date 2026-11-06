@@ -8,6 +8,8 @@ import {
   bundleToCbz,
   commonPrefixName,
   groupImages,
+  splitImages,
+  writeCbz,
 } from '../../src/data/imageBundle.ts';
 import { pageJpeg, pagePng } from '../../scripts/fixtures/lib.ts';
 
@@ -112,5 +114,48 @@ describe('determinism', () => {
     expect(Array.from(new Uint8Array(await a.arrayBuffer()))).toEqual(
       Array.from(new Uint8Array(await b.arrayBuffer())),
     );
+  });
+});
+
+describe('writeCbz (streamed into OPFS by the import worker)', () => {
+  it('emits the archive in small chunks: never the whole archive at once', async () => {
+    const big = (n: number) =>
+      new File([new Uint8Array(3_000_000).fill(n) as BlobPart], `p${n}.jpg`);
+    const files = [big(1), big(2), big(3)]; // 9 MB of pages
+    const sizes: number[] = [];
+    const parts: Uint8Array[] = [];
+    await writeCbz(files, (c) => {
+      sizes.push(c.byteLength);
+      parts.push(c.slice());
+    });
+    expect(Math.max(...sizes)).toBeLessThanOrEqual((1 << 20) + 1024);
+    const streamed = new Blob(parts as BlobPart[]);
+    const entries = await readZipDirectory(streamed);
+    expect(entries.map((e) => e.size)).toEqual([3_000_000, 3_000_000, 3_000_000]);
+    // byte-identical to the in-memory bundle (same duplicate key either way)
+    const mem = await bundleToCbz({ name: 'x', files });
+    const a = Buffer.from(await streamed.arrayBuffer());
+    expect(a.equals(Buffer.from(await mem.arrayBuffer()))).toBe(true);
+  });
+
+  it('stops when the sink throws (import cancelled)', async () => {
+    const files = [new File([new Uint8Array(3_000_000) as BlobPart], 'a.jpg')];
+    let calls = 0;
+    await expect(
+      writeCbz(files, () => {
+        if (++calls === 2) throw new Error('cancelled');
+      }),
+    ).rejects.toThrow('cancelled');
+    expect(calls).toBe(2);
+  });
+});
+
+describe('splitImages', () => {
+  it('groups images and passes other files through', async () => {
+    const zip = new File([new Uint8Array([0x50, 0x4b, 3, 4, 0, 0]) as BlobPart], 'a.cbz');
+    const { groups, rest } = await splitImages([png('p 2.png', 2), zip, png('p 1.png', 1)], 'f');
+    expect(rest).toEqual([zip]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.files.map((f) => f.name)).toEqual(['p 1.png', 'p 2.png']);
   });
 });

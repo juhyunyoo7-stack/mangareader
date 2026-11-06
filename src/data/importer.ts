@@ -8,7 +8,7 @@ import { getImportWorker } from '../workers/clients.ts';
 import { RpcError } from '../workers/rpc.ts';
 import { applyPendingState } from './backup.ts';
 import { buildBook } from './bookFactory.ts';
-import { bundleLooseImages } from './imageBundle.ts';
+import { newestMtime, splitImages, type ImageGroup } from './imageBundle.ts';
 import { bookPath, removePath, safeSegment, storageEstimate } from './opfs.ts';
 import { addBook, getBookByKey, patchBook } from './repo.ts';
 import { S } from '../strings.ts';
@@ -46,37 +46,53 @@ export async function cleanupIncoming(): Promise<void> {
   }
 }
 
+/** One thing to import: a picked file, or a group of loose page images bundled into a CBZ. */
+type Source = { file: File; images?: undefined } | { file?: undefined; images: ImageGroup };
+
+const sourceName = (s: Source) => (s.images ? `${s.images.name}.cbz` : s.file.name);
+const sourceSize = (s: Source) =>
+  s.images ? s.images.files.reduce((n, f) => n + f.size, 0) : s.file.size;
+
 export async function importFiles(picked: File[]): Promise<ImportOutcome[]> {
-  // loose page images -> one CBZ per folder / selection, then the normal pipeline
-  const files = await bundleLooseImages(
+  // loose page images -> one CBZ per folder / selection (streamed into OPFS by the worker)
+  const { groups, rest } = await splitImages(
     picked,
     S.imageBookName(new Date().toISOString().slice(0, 10)),
   );
-  const jobs: { file: File; job: ImportJob }[] = files.map((file) => ({
-    file,
-    job: { id: ulid(), name: file.name, bytes: 0, total: file.size, status: 'queued' },
+  const sources: Source[] = [
+    ...groups.map((images) => ({ images })),
+    ...rest.map((file) => ({ file })),
+  ];
+  const jobs: { src: Source; job: ImportJob }[] = sources.map((src) => ({
+    src,
+    job: { id: ulid(), name: sourceName(src), bytes: 0, total: sourceSize(src), status: 'queued' },
   }));
   importJobs.value = [...importJobs.value, ...jobs.map((j) => j.job)];
   const out: ImportOutcome[] = [];
-  for (const { file, job } of jobs) {
-    out.push(await importOne(file, job));
+  for (const { src, job } of jobs) {
+    out.push(await importOne(src, job));
   }
   bumpLibrary();
   return out;
 }
 
-async function importOne(file: File, job: ImportJob): Promise<ImportOutcome> {
+async function importOne(src: Source, job: ImportJob): Promise<ImportOutcome> {
+  const fileName = sourceName(src);
+  const fileSize = sourceSize(src);
   const fail = (message: string, status: ImportStatus = 'failed'): ImportOutcome => {
     updateJob(job.id, { status: status === 'cancelled' ? 'cancelled' : 'failed', message });
-    return { name: file.name, status, message };
+    return { name: fileName, status, message };
   };
-  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-  const fmt = detectFormat(head);
-  if (fmt !== 'zip' && fmt !== 'rar' && fmt !== '7z' && fmt !== 'pdf') {
-    return fail(S.unsupportedFile);
+  if (src.file) {
+    const file = src.file;
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const fmt = detectFormat(head);
+    if (fmt !== 'zip' && fmt !== 'rar' && fmt !== '7z' && fmt !== 'pdf') {
+      return fail(S.unsupportedFile);
+    }
   }
   const est = await storageEstimate();
-  if (est.quota > 0 && est.quota - est.usage < file.size * 1.1) {
+  if (est.quota > 0 && est.quota - est.usage < fileSize * 1.1) {
     return fail(S.notEnoughStorage);
   }
   const tmpId = ulid();
@@ -87,30 +103,30 @@ async function importOne(file: File, job: ImportJob): Promise<ImportOutcome> {
   });
   try {
     updateJob(job.id, { status: 'copying' });
-    const { analysis, size } = await w.call<{ analysis: Analysis; size: number }>('importFile', {
-      tmpId,
-      file,
-    });
+    const { analysis, size } = await w.call<{ analysis: Analysis; size: number }>(
+      'importFile',
+      src.images ? { tmpId, images: src.images.files } : { tmpId, file: src.file },
+    );
     updateJob(job.id, { status: 'analyzing' });
     const existing = await getBookByKey(analysis.contentKey);
     if (existing && existing.location.kind !== 'offloaded') {
       await w.call('discard', { tmpId });
       updateJob(job.id, { status: 'failed', message: S.alreadyInLibrary });
       return {
-        name: file.name,
+        name: fileName,
         status: 'duplicate',
         bookId: existing.id,
         message: S.alreadyInLibrary,
       };
     }
     const bookId = existing?.id ?? ulid();
-    const name = safeSegment(file.name);
+    const name = safeSegment(fileName);
     await w.call('commit', { tmpId, bookId, name });
     const location = { kind: 'opfs' as const, path: bookPath(bookId, name).join('/') };
     if (existing) {
       await patchBook(existing.id, { location, fileName: name, size, missing: false });
       updateJob(job.id, { status: 'done' });
-      return { name: file.name, status: 'reattached', bookId };
+      return { name: fileName, status: 'reattached', bookId };
     }
     const hasCover = await makeCover(bookId, { opfsPath: bookPath(bookId, name) }, analysis);
     const built = buildBook({
@@ -118,7 +134,7 @@ async function importOne(file: File, job: ImportJob): Promise<ImportOutcome> {
       analysis,
       fileName: name,
       size,
-      mtime: file.lastModified,
+      mtime: src.images ? newestMtime(src.images.files) : src.file.lastModified,
       location,
       hasCover,
     });
@@ -131,7 +147,7 @@ async function importOne(file: File, job: ImportJob): Promise<ImportOutcome> {
     }
     await applyPendingState(book);
     updateJob(job.id, { status: 'done' });
-    return { name: file.name, status: 'added', bookId };
+    return { name: fileName, status: 'added', bookId };
   } catch (e) {
     const code = (e as { code?: string }).code;
     if (code === 'cancelled') return fail(S.importCancelled, 'cancelled');

@@ -61,19 +61,20 @@ const CHUNK = 1 << 20;
 /** Fixed entry time (1980-01-01): the same images must always produce the same bytes, so a re-import is seen as a duplicate. */
 const FIXED_MTIME = Date.UTC(1980, 0, 1);
 
-/** Stream the images (already in reading order) into a stored CBZ. Entry names keep the order. */
-export async function bundleToCbz(group: ImageGroup): Promise<File> {
-  const parts: Uint8Array[] = [];
+/**
+ * Stream the images (already in reading order) as a stored CBZ: `sink` receives the archive bytes in
+ * order, at most about one 1 MB slice at a time, so the whole archive is never held in memory (the
+ * import worker writes the chunks straight into OPFS). Entry names keep the order.
+ */
+export async function writeCbz(files: File[], sink: (chunk: Uint8Array) => void): Promise<void> {
   let failure: Error | null = null;
   const zip = new Zip((err, chunk) => {
     if (err) failure = err;
-    else parts.push(chunk);
+    else sink(chunk);
   });
-  const width = Math.max(4, String(group.files.length).length);
-  let newest = 0;
-  for (let i = 0; i < group.files.length; i++) {
-    const f = group.files[i]!;
-    newest = Math.max(newest, f.lastModified);
+  const width = Math.max(4, String(files.length).length);
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i]!;
     const ext = /\.[A-Za-z0-9]{2,5}$/.exec(f.name)?.[0].toLowerCase() ?? '.jpg';
     const entry = new ZipPassThrough(`${String(i + 1).padStart(width, '0')}${ext}`);
     entry.mtime = FIXED_MTIME;
@@ -81,14 +82,37 @@ export async function bundleToCbz(group: ImageGroup): Promise<File> {
     for (let o = 0; o < f.size || o === 0; o += CHUNK) {
       const buf = new Uint8Array(await f.slice(o, o + CHUNK).arrayBuffer());
       entry.push(buf, o + CHUNK >= f.size);
+      if (failure) throw failure;
     }
   }
   zip.end();
   if (failure) throw failure;
+}
+
+/** Newest modification time of the group's files (the bundled book's mtime). */
+export function newestMtime(files: File[]): number {
+  return files.reduce((m, f) => Math.max(m, f.lastModified), 0) || Date.now();
+}
+
+/** The group as an in-memory CBZ File (tests and small selections; the importer streams instead). */
+export async function bundleToCbz(group: ImageGroup): Promise<File> {
+  const parts: Uint8Array[] = [];
+  await writeCbz(group.files, (c) => parts.push(c));
   return new File(parts as BlobPart[], `${group.name}.cbz`, {
     type: 'application/vnd.comicbook+zip',
-    lastModified: newest || Date.now(),
+    lastModified: newestMtime(group.files),
   });
+}
+
+/** Split a picked list into image groups (one book each) and everything else (archives etc.). */
+export async function splitImages(
+  files: File[],
+  fallbackName: string,
+): Promise<{ groups: ImageGroup[]; rest: File[] }> {
+  const flags = await Promise.all(files.map(isImageFile));
+  const images = files.filter((_, i) => flags[i]);
+  const rest = files.filter((_, i) => !flags[i]);
+  return { groups: images.length ? groupImages(images, fallbackName) : [], rest };
 }
 
 /**
@@ -96,11 +120,9 @@ export async function bundleToCbz(group: ImageGroup): Promise<File> {
  * `fallbackName` names a group when neither a folder nor a common file-name prefix exists.
  */
 export async function bundleLooseImages(files: File[], fallbackName: string): Promise<File[]> {
-  const flags = await Promise.all(files.map(isImageFile));
-  const images = files.filter((_, i) => flags[i]);
-  if (images.length === 0) return files;
-  const rest = files.filter((_, i) => !flags[i]);
+  const { groups, rest } = await splitImages(files, fallbackName);
+  if (groups.length === 0) return files;
   const bundles: File[] = [];
-  for (const g of groupImages(images, fallbackName)) bundles.push(await bundleToCbz(g));
+  for (const g of groups) bundles.push(await bundleToCbz(g));
   return [...bundles, ...rest];
 }

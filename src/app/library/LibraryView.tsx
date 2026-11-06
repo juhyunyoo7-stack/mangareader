@@ -18,6 +18,7 @@ import { FolderControls, ReconnectBanner } from './FolderControls.tsx';
 import { InstallHint } from '../components/InstallHint.tsx';
 import { StorageMeter } from './StorageMeter.tsx';
 import { S } from '../../strings.ts';
+import { folderPickerSupported } from '../../platform/web.ts';
 
 export async function runImport(files: File[]): Promise<void> {
   if (files.length === 0) return;
@@ -55,10 +56,17 @@ export function ImportButton({ primary = false }: { primary?: boolean }) {
           void runImport(files);
         }}
       />
-      <button class="btn" onClick={() => folderInput.current?.click()} data-testid="import-folder">
-        <Icon name="plus" size={18} /> {S.importFolder}
-      </button>
-      {/* a picked folder of page images becomes one book (named after the folder) */}
+      {/* a picked folder of page images becomes one book (named after the folder); hidden where the
+          browser cannot pick folders (iOS/iPadOS before 18.4), multi-selecting the images works there */}
+      {folderPickerSupported() && (
+        <button
+          class="btn"
+          onClick={() => folderInput.current?.click()}
+          data-testid="import-folder"
+        >
+          <Icon name="plus" size={18} /> {S.importFolder}
+        </button>
+      )}
       <input
         ref={folderInput}
         type="file"
@@ -176,6 +184,11 @@ export function LibraryView() {
         <div class="empty">
           <h2>{S.noBooksTitle}</h2>
           <p>{S.noBooksBody}</p>
+          {!folderPickerSupported() && (
+            <p class="muted" data-testid="folder-unavailable">
+              {S.folderPickUnavailable}
+            </p>
+          )}
           <ImportButton primary />
         </div>
       ) : searching ? (

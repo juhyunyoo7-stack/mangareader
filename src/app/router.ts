@@ -23,8 +23,14 @@ export function parseHash(hash: string): Route {
 
 export const route = signal<Route>(parseHash(location.hash));
 
+/** Hash of the history entry the current one was pushed from ('' when unknown). */
+let previousHash = '';
+let replacing = false;
+
 export function initRouter(): void {
-  window.addEventListener('hashchange', () => {
+  window.addEventListener('hashchange', (e) => {
+    if (!replacing) previousHash = new URL(e.oldURL).hash;
+    replacing = false;
     route.value = parseHash(location.hash);
   });
 }
@@ -34,7 +40,19 @@ export function navigate(to: string): void {
   else location.hash = to;
 }
 
-export function back(fallback = '#/library'): void {
-  if (history.length > 1 && document.referrer !== undefined) history.back();
-  else navigate(fallback);
+/** Swap the current entry for `to` (no new history entry; the entry it came from is kept). */
+export function replaceRoute(to: string): void {
+  if (location.hash === to) return;
+  replacing = true;
+  location.replace(to);
+}
+
+/**
+ * Leave the current screen (the reader) for `to` without leaving it behind in history, so the
+ * Android back button / back gesture does not reopen it: step back when `to` is where we came from,
+ * otherwise replace the current entry.
+ */
+export function leave(to: string): void {
+  if (previousHash === to) history.back();
+  else replaceRoute(to);
 }

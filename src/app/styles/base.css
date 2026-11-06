@@ -91,6 +91,12 @@ input {
   min-height: 36px;
   padding: 0 10px;
 }
+@media (pointer: coarse) {
+  /* touch: keep the 44 px minimum target for the compact buttons too (banners, reader quick row) */
+  .btn.small {
+    min-height: 44px;
+  }
+}
 .btn:disabled {
   opacity: 0.5;
   cursor: default;
